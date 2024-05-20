@@ -825,6 +825,30 @@ exit:
     return error;
 }
 
+Error CommissionerApp::CommandDiagGet(ByteArray &aRawTlvData, uint16_t aRloc, uint64_t aDiagTlvFlags)
+{
+    Error error;
+    SuccessOrExit(error = mCommissioner->CommandDiagGet(aRawTlvData, aRloc, aDiagTlvFlags));
+exit:
+    return error;
+}
+
+Error CommissionerApp::CommandDiagGetQuery(ByteArray &aRawTlvData, uint16_t aRloc, uint64_t aDiagTlvFlags)
+{
+    Error error;
+    SuccessOrExit(error = mCommissioner->CommandDiagGetQuery(aRawTlvData, aRloc, aDiagTlvFlags));
+exit:
+    return error;
+}
+
+Error CommissionerApp::CommandDiagGetAnswer(ByteArray &aRawTlvData, uint16_t aRloc, uint64_t aDiagTlvFlags)
+{
+    Error error;
+    SuccessOrExit(error = mCommissioner->CommandDiagGetAnswer(aRawTlvData, aRloc, aDiagTlvFlags));
+exit:
+    return error;
+}
+
 Error CommissionerApp::GetTriHostname(std::string &aHostname) const
 {
     Error error;
@@ -1302,6 +1326,11 @@ void CommissionerApp::OnEnergyReport(const std::string &aPeerAddr,
 
     // FIXME(wgtdkp): synchronization
     mEnergyReports[addr] = {aChannelMask, aEnergyList};
+}
+
+void CommissionerApp::OnDiagAnswerMessage(const ByteArray &aDiagAnsMsg)
+{
+    L
 }
 
 void CommissionerApp::OnDatasetChanged()

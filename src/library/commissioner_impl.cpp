@@ -160,12 +160,15 @@ CommissionerImpl::CommissionerImpl(CommissionerHandler &aHandler, struct event_b
     , mResourcePanIdConflict(uri::kMgmtPanidConflict,
                              [this](const coap::Request &aRequest) { HandlePanIdConflict(aRequest); })
     , mResourceEnergyReport(uri::kMgmtEdReport, [this](const coap::Request &aRequest) { HandleEnergyReport(aRequest); })
+    , mResourceDiagAns(uri::kDiagGetAns, [this](const coap::Request &aRequest) { HandleDiagAns(aRequest); })
 {
     SuccessOrDie(mBrClient.AddResource(mResourceUdpRx));
     SuccessOrDie(mBrClient.AddResource(mResourceRlyRx));
+
     SuccessOrDie(mProxyClient.AddResource(mResourceDatasetChanged));
     SuccessOrDie(mProxyClient.AddResource(mResourcePanIdConflict));
     SuccessOrDie(mProxyClient.AddResource(mResourceEnergyReport));
+    SuccessOrDie(mProxyClient.AddResource(mResourceDiagAns));
 }
 
 Error CommissionerImpl::Init(const Config &aConfig)
@@ -650,6 +653,141 @@ exit:
     if (error != ErrorCode::kNone)
     {
         aHandler(error);
+    }
+}
+
+void CommissionerImpl::CommandDiagGetQuery(Handler<ByteArray> aHandler, uint16_t aRloc, uint16_t aQueryId)
+{
+    Error         error;
+    coap::Request request{coap::Type::kConfirmable, coap::Code::kPost};
+    auto          onResponse = [aHandler](const coap::Response *aResponse, Error aError) {
+        Error error;
+
+        SuccessOrExit(error = aError);
+        SuccessOrExit(error = CheckCoapResponseCode(*aResponse));
+
+        aHandler(&aResponse->GetPayload(), error);
+
+    exit:
+        if (error != ErrorCode::kNone)
+        {
+            aHandler(nullptr, error);
+        }
+    };
+
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("commissioner is not active"));
+    SuccessOrExit(error = request.SetUriPath(uri::kDiagGetQuery));
+    VerifyOrExit(IsDiagQueryId(aQueryId), error = ERROR_INVALID_ARGS("tlv id is not available for query"));
+    SuccessOrExit(error = AppendTlv(request, {tlv::Type::kNetworkDiagTypeList, (uint8_t)aQueryId, tlv::Scope::kNetworkDiag}));
+
+#if OT_COMM_CONFIG_CCM_ENABLE
+    if (IsCcmMode())
+    {
+        SuccessOrExit(error = SignRequest(request));
+    }
+#endif
+    if (aRloc == 0)
+    {
+        aRloc = kLeaderAloc16;
+    }
+
+    LOG_INFO(LOG_REGION_DIAG, "sent DIAG_GET.qry");
+    mProxyClient.SendRequest(request, onResponse, aRloc, kDefaultMmPort);
+    LOG_DEBUG(LOG_REGION_DIAG, "sent DIAG_GET.qry");
+
+exit:
+    if (error != ErrorCode::kNone)
+    {
+        aHandler(nullptr, error);
+    }
+}
+
+void CommissionerImpl::CommandDiagGetAnswer(Handler<ByteArray> aHandler, uint16_t aRloc, uint16_t aQueryId)
+{
+    Error         error;
+    coap::Request request{coap::Type::kConfirmable, coap::Code::kPost};
+    auto          onResponse = [aHandler](const coap::Response *aResponse, Error aError) {
+        Error error;
+
+        SuccessOrExit(error = aError);
+        SuccessOrExit(error = CheckCoapResponseCode(*aResponse));
+
+        aHandler(&aResponse->GetPayload(), error);
+
+    exit:
+        if (error != ErrorCode::kNone)
+        {
+            aHandler(nullptr, error);
+        }
+    };
+
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("commissioner is not active"));
+    SuccessOrExit(error = request.SetUriPath(uri::kDiagGetAns));
+    VerifyOrExit(IsDiagQueryId(aQueryId), error = ERROR_INVALID_ARGS("tlv id is not available for answer"));
+    SuccessOrExit(error = AppendTlv(request, {tlv::Type::kNetworkDiagAnswer, aQueryId, tlv::Scope::kNetworkDiag}));
+
+#if OT_COMM_CONFIG_CCM_ENABLE
+    if (IsCcmMode())
+    {
+        SuccessOrExit(error = SignRequest(request));
+    }
+#endif
+    if (aRloc == 0)
+    {
+        aRloc = kLeaderAloc16;
+    }
+    mProxyClient.SendRequest(request, onResponse, aRloc, kDefaultMmPort);
+    LOG_DEBUG(LOG_REGION_DIAG, "sent DIAG_GET.ans");
+
+exit:
+    if (error != ErrorCode::kNone)
+    {
+        aHandler(nullptr, error);
+    }
+}
+
+
+void CommissionerImpl::CommandDiagGet(Handler<ByteArray> aHandler, uint16_t aRloc, uint64_t aDiagTlvFlags)
+{
+    Error         error;
+    coap::Request request{coap::Type::kConfirmable, coap::Code::kPost};
+    auto          onResponse = [aHandler](const coap::Response *aResponse, Error aError) {
+        Error error;
+
+        SuccessOrExit(error = aError);
+        SuccessOrExit(error = CheckCoapResponseCode(*aResponse));
+
+        aHandler(&aResponse->GetPayload(), error);
+
+    exit:
+        if (error != ErrorCode::kNone)
+        {
+            aHandler(nullptr, error);
+        }
+    };
+
+    VerifyOrExit(IsActive(), error = ERROR_INVALID_STATE("commissioner is not active"));
+    SuccessOrExit(error = request.SetUriPath(uri::kDiagGet));
+    SuccessOrExit(error = AppendTlv(request, {tlv::Type::kNetworkDiagTypeList, GetDiagTypeListTlvs(aDiagTlvFlags),
+                                              tlv::Scope::kNetworkDiag}));
+
+#if OT_COMM_CONFIG_CCM_ENABLE
+    if (IsCcmMode())
+    {
+        SuccessOrExit(error = SignRequest(request));
+    }
+#endif
+    if (aRloc == 0)
+    {
+        aRloc = kLeaderAloc16;
+    }
+    mProxyClient.SendRequest(request, onResponse, aRloc, kDefaultMmPort);
+    LOG_DEBUG(LOG_REGION_DIAG, "sent DIAG_GET.req");
+
+exit:
+    if (error != ErrorCode::kNone)
+    {
+        aHandler(nullptr, error);
     }
 }
 
@@ -1901,6 +2039,129 @@ exit:
     return error;
 }
 
+ByteArray CommissionerImpl::GetDiagTypeListTlvs(uint64_t aDiagTlvFlags)
+{
+    ByteArray tlvTypes;
+
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagExtMacAddress))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagExtMacAddress);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagMacAddress))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagMacAddress);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagMode))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagMode);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagTimeout))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagTimeout);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagConnectivity))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagConnectivity);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagRoute64))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagRoute64);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagLeaderData))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagLeaderData);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagNetworkData))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagNetworkData);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagIpv6Address))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagIpv6Address);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagMacCounters))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagMacCounters);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagBatteryLevel))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagBatteryLevel);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagSupplyVoltage))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagSupplyVoltage);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagChildTable))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagChildTable);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagChannelPages))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagChannelPages);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagMaxChildTimeout))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagMaxChildTimeout);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagLDevIDSubjectPubKeyInfo))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagLDevIDSubjectPubKeyInfo);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagIDevIDCert))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagIDevIDCert);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagEui64))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagEui64);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagVersion))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagVersion);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagVendorName))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagVendorName);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagVendorModel))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagVendorModel);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagVendorSWVersion))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagVendorSWVersion);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagThreadStackVersion))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagThreadStackVersion);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagChild))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagChild);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagChildIpv6Address))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagChildIpv6Address);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagRouterNeighbor))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagRouterNeighbor);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagAnswer))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagAnswer);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagQueryID))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagQueryID);
+    }
+    if (aDiagTlvFlags & (1 << (uint8_t)tlv::Type::kNetworkDiagMleCounters))
+    {
+        EncodeTlvType(tlvTypes, tlv::Type::kNetworkDiagMleCounters);
+    }
+    return tlvTypes;
+}
+
 ByteArray CommissionerImpl::GetCommissionerDatasetTlvs(uint16_t aDatasetFlags)
 {
     ByteArray tlvTypes;
@@ -2209,6 +2470,30 @@ void CommissionerImpl::HandleJoinerSessionTimer(Timer &aTimer)
     if (hasNextShot)
     {
         aTimer.Start(nextShot);
+    }
+}
+
+void CommissionerImpl::HandleDiagAns(const coap::Request &aRequest)
+{
+    Error       error;
+    tlv::TlvSet tlvSet;
+    tlv::TlvPtr tlv;
+    coap::Response response{coap::Type::kAcknowledgment, coap::Code::kChanged};
+
+    std::string peerAddr = aRequest.GetEndpoint()->GetPeerAddr().ToString();
+
+    LOG_INFO(LOG_REGION_DIAG, "received DIAG_GET.ans from {}", peerAddr);
+
+    mProxyClient.SendEmptyChanged(aRequest);
+
+    SuccessOrExit(error = GetTlvSet(tlvSet, aRequest, tlv::Scope::kNetworkDiag));
+
+    mCommissionerHandler.OnDiagAnswerMessage(tlvSet[tlv::Type::kNetworkDiagChild]->GetValue());
+
+exit:
+    if (error != ErrorCode::kNone)
+    {
+        LOG_WARN(LOG_REGION_DIAG, "handle MGMT_ED_REPORT.ans from {} failed: {}", peerAddr, error.ToString());
     }
 }
 

@@ -124,6 +124,9 @@ public:
                                  const ChannelMask &aChannelMask,
                                  const ByteArray   &aEnergyList) override;
 
+    MOCKABLE void OnDiagAnswerMessage(const ByteArray   &aDiagAnsMsg) override;
+
+
     MOCKABLE void OnDatasetChanged() override;
 
     MOCKABLE Error Start(std::string       &aExistingCommissionerId,
@@ -224,6 +227,15 @@ public:
 
     // Always send MGMT_PENDING_SET.req.
     MOCKABLE Error SetPendingDataset(const PendingOperationalDataset &aDataset);
+
+    /*
+     * Diag TLV APIs
+     */
+
+    // Always send DIAG_GET.req.
+    MOCKABLE Error CommandDiagGet(ByteArray &aRawTlvData, uint16_t aRloc, uint64_t aDiagTlvFlags);
+    MOCKABLE Error CommandDiagGetQuery(ByteArray &aRawTlvData, uint16_t aRloc, uint64_t aDiagTlvFlags);
+    MOCKABLE Error CommandDiagGetAnswer(ByteArray &aRawTlvData, uint16_t aRloc, uint64_t aDiagTlvFlags);
 
     /*
      * BBR Dataset APIs

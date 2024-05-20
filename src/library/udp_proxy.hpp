@@ -95,6 +95,7 @@ public:
                      uint16_t              aPeerPort);
 
     void SendEmptyChanged(const coap::Request &aRequest);
+    void SendHeaderResponse(coap::Code aCode, const coap::Request &aRequest);
 
     Error AddResource(const coap::Resource &aResource) { return mCoap.AddResource(aResource); }
 

@@ -88,7 +88,7 @@ Error ProxyEndpoint::Send(const ByteArray &aRequest, MessageSubType aSubType)
     SuccessOrExit(error = udpTx.SetUriPath(uri::kUdpTx));
     SuccessOrExit(error = AppendTlv(udpTx, {tlv::Type::kIpv6Address, mPeerAddr.GetRaw()}));
     SuccessOrExit(error = AppendTlv(udpTx, {tlv::Type::kUdpEncapsulation, udpPayload}));
-
+            LOG_WARN(LOG_REGION_COAP, "-------------------  ProxyEndpoint::Send  local port {} ------------------", mBrClient.GetDtlsSession().GetLocalPort());
     mBrClient.SendRequest(udpTx, nullptr);
 
 exit:
@@ -135,11 +135,19 @@ void ProxyClient::SendRequest(const coap::Request  &aRequest,
     mCoap.SendRequest(aRequest, aHandler);
 }
 
+void ProxyClient::SendHeaderResponse(coap::Code aCode, const coap::Request &aRequest)
+{
+    mEndpoint.SetPeerAddr(aRequest.GetEndpoint()->GetPeerAddr());
+    mEndpoint.SetPeerPort(61631);
+    LOG_WARN(LOG_REGION_COAP, "-----------         SendHeaderResponse        -------- ");
+    IgnoreError(mCoap.SendHeaderResponse(aCode, aRequest));
+}
+
 void ProxyClient::SendEmptyChanged(const coap::Request &aRequest)
 {
     mEndpoint.SetPeerAddr(aRequest.GetEndpoint()->GetPeerAddr());
     mEndpoint.SetPeerPort(aRequest.GetEndpoint()->GetPeerPort());
-
+LOG_WARN(LOG_REGION_COAP, "-----------       send Empty changed peer port   {}      -------- ",aRequest.GetEndpoint()->GetPeerPort());
     IgnoreError(mCoap.SendEmptyChanged(aRequest));
 }
 
@@ -165,6 +173,7 @@ void ProxyClient::HandleUdpRx(const coap::Request &aUdpRx)
 
     mEndpoint.SetPeerAddr(peerAddr);
     mEndpoint.SetPeerPort(peerPort);
+    LOG_WARN(LOG_REGION_COAP, "-----------         received peerPort is  {}        -------- ", peerPort);
 
     mCoap.Receive({udpEncap->GetValue().begin() + 4, udpEncap->GetValue().end()});
 

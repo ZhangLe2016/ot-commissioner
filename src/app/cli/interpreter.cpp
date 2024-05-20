@@ -199,6 +199,7 @@ const std::map<std::string, Interpreter::Evaluator> &Interpreter::mEvaluatorMap 
     {"announce", &Interpreter::ProcessAnnounce},   {"panid", &Interpreter::ProcessPanId},
     {"energy", &Interpreter::ProcessEnergy},       {"exit", &Interpreter::ProcessExit},
     {"quit", &Interpreter::ProcessExit},           {"help", &Interpreter::ProcessHelp},
+    {"diag", &Interpreter::ProcessDiag},
 };
 
 const std::map<std::string, std::string> &Interpreter::mUsageMap = *new std::map<std::string, std::string>{
@@ -280,6 +281,7 @@ const std::map<std::string, std::string> &Interpreter::mUsageMap = *new std::map
     {"quit", "quit\n"
              "(an alias to 'exit' command)"},
     {"help", "help [<command>]"},
+    {"diag", "diag [--rloc <rloc>] [--flag] <tlvs-flag>"},
 };
 
 const std::vector<Interpreter::StringArray> &Interpreter::mMultiNetworkSyntax =
@@ -945,7 +947,7 @@ Interpreter::Value Interpreter::ProcessConfig(const Expression &aExpr)
         }
         else
         {
-            SuccessOrExit(value = utils::Hex(pskc, aExpr[3]));
+            SuccessOrExit(value = utils::Hex(pskc, "445f2b5ca6f2a93a55ce570a70efeecb"));
         }
         SuccessOrExit(value = mJobManager->UpdateDefaultConfigPSKc(pskc));
     }
@@ -1026,7 +1028,7 @@ Interpreter::Value Interpreter::ProcessStartJob(CommissionerAppPtr &aCommissione
 
     VerifyOrExit(aExpr.size() >= 3, error = ERROR_INVALID_ARGS(SYNTAX_FEW_ARGS));
     SuccessOrExit(error = ParseInteger(port, aExpr[2]));
-    SuccessOrExit(error = aCommissioner->Start(existingCommissionerId, aExpr[1], port));
+    SuccessOrExit(error = aCommissioner->Start(existingCommissionerId, "192.168.9.2", 49154));
 
 exit:
     if (!existingCommissionerId.empty())
@@ -1126,6 +1128,70 @@ Interpreter::Value Interpreter::ProcessToken(const Expression &aExpr)
     else
     {
         ExitNow(value = ERROR_INVALID_COMMAND(SYNTAX_INVALID_SUBCOMMAND, aExpr[1]));
+    }
+
+exit:
+    return value;
+}
+
+Interpreter::Value Interpreter::ProcessDiag(const Expression &aExpr)
+{
+    Value              value;
+    CommissionerAppPtr commissioner = nullptr;
+
+    SuccessOrExit(value = mJobManager->GetSelectedCommissioner(commissioner));
+    value = ProcessDiagJob(commissioner, aExpr);
+exit:
+    return value;
+}
+
+Interpreter::Value Interpreter::ProcessDiagJob(CommissionerAppPtr &aCommissioner, const Expression &aExpr)
+{
+    uint16_t  rloc = 0;
+    uint64_t  flag = 0;
+    Value     value;
+    ByteArray rawTlvData;
+
+     auto it = std::find(mContext.mCommandKeys.begin(), mContext.mCommandKeys.end(), "--rloc");
+     if (it != mContext.mCommandKeys.end())
+     {
+         if (++it != mContext.mCommandKeys.end())
+         {
+             SuccessOrExit(value = ParseInteger(rloc, it[0]));
+         }
+         else
+         {
+             ExitNow(value = ERROR_INVALID_ARGS("Missing --rloc value"));
+         }
+     }
+
+     it = std::find(mContext.mCommandKeys.begin(), mContext.mCommandKeys.end(), "--flag");
+     if (it != mContext.mCommandKeys.end())
+     {
+         if (++it != mContext.mCommandKeys.end())
+         {
+             SuccessOrExit(value = ParseInteger(flag, it[0]));
+         }
+         else
+         {
+             ExitNow(value = ERROR_INVALID_ARGS("Missing --flag value"));
+         }
+     }
+
+    if (CaseInsensitiveEqual(aExpr[1], "query"))
+    {
+         VerifyOrExit(aExpr.size() >= 2, value = ERROR_INVALID_ARGS(SYNTAX_FEW_ARGS));
+        SuccessOrExit(value = aCommissioner->CommandDiagGetQuery(rawTlvData, rloc, flag));
+    }
+    else if (CaseInsensitiveEqual(aExpr[1], "answer"))
+    {
+        SuccessOrExit(value = aCommissioner->CommandDiagGetAnswer(rawTlvData, rloc, flag));
+        value = utils::Hex(rawTlvData);
+    }
+    else
+    {
+        SuccessOrExit(value = aCommissioner->CommandDiagGet(rawTlvData, rloc, flag));
+        value = utils::Hex(rawTlvData);
     }
 
 exit:

@@ -196,6 +196,13 @@ public:
 
     struct event_base *GetEventBase() { return mEventBase; }
 
+    void  CommandDiagGet(Handler<ByteArray> aHandler, uint16_t aRloc, uint64_t aDiagTlvFlags) override;
+    Error CommandDiagGet(ByteArray &, uint16_t, uint64_t) override { return ERROR_UNIMPLEMENTED(""); }
+    void  CommandDiagGetQuery(Handler<ByteArray> aHandler, uint16_t aRloc, uint16_t aQueryId) override;
+    Error CommandDiagGetQuery(ByteArray &, uint16_t, uint16_t) override { return ERROR_UNIMPLEMENTED(""); }
+    void  CommandDiagGetAnswer(Handler<ByteArray> aHandler, uint16_t aRloc, uint16_t aQueryId) override;
+    Error CommandDiagGetAnswer(ByteArray &, uint16_t, uint16_t) override { return ERROR_UNIMPLEMENTED(""); }
+
 private:
     using AsyncRequest = std::function<void()>;
 
@@ -208,12 +215,21 @@ private:
     static ByteArray GetActiveOperationalDatasetTlvs(uint16_t aDatasetFlags);
     static ByteArray GetPendingOperationalDatasetTlvs(uint16_t aDatasetFlags);
 
+    static ByteArray GetDiagTypeListTlvs(uint64_t aDiagTlvFlags);
+
     static Error DecodeActiveOperationalDataset(ActiveOperationalDataset &aDataset, const ByteArray &aPayload);
     static Error DecodePendingOperationalDataset(PendingOperationalDataset &aDataset, const coap::Response &aResponse);
     static Error DecodeChannelMask(ChannelMask &aChannelMask, const ByteArray &aBuf);
     static Error EncodeActiveOperationalDataset(coap::Request &aRequest, const ActiveOperationalDataset &aDataset);
     static Error EncodePendingOperationalDataset(coap::Request &aRequest, const PendingOperationalDataset &aDataset);
     static Error EncodeChannelMask(ByteArray &aBuf, const ChannelMask &aChannelMask);
+
+    bool IsDiagQueryId(uint16_t aQueryId) const
+    {
+        return ((aQueryId == (uint16_t)tlv::Type::kNetworkDiagChild) ||
+            (aQueryId == (uint16_t)tlv::Type::kNetworkDiagChildIpv6Address) ||
+            (aQueryId == (uint16_t)tlv::Type::kNetworkDiagRouterNeighbor));
+    }
 
 #if OT_COMM_CONFIG_CCM_ENABLE
     static Error     DecodeBbrDataset(BbrDataset &aDataset, const coap::Response &aResponse);
@@ -249,6 +265,9 @@ private:
 
     void HandleRlyRx(const coap::Request &aRlyRx);
 
+    //for handling DIAG_GET.ans request
+    void HandleDiagAns(const coap::Request &aRequest);
+
     void HandleJoinerSessionTimer(Timer &aTimer);
 
 private:
@@ -274,6 +293,7 @@ private:
 
     coap::Resource mResourceUdpRx;
     coap::Resource mResourceRlyRx;
+    coap::Resource mResourceDiagAns;
 
     ProxyClient mProxyClient;
 

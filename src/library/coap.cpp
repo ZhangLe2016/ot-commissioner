@@ -564,14 +564,13 @@ void Coap::SendRequest(const Request &aRequest, ResponseHandler aHandler)
     VerifyOrDie(request->GetMessageId() == 0);
     request->SetMessageId(AllocMessageId());
     request->SetToken(kDefaultTokenLength);
-
+LOG_INFO(LOG_REGION_COAP, "-------------- SendRequest --------------");
     SuccessOrExit(error = Send(*request));
 
     if (request->IsConfirmable())
     {
         mRequestsCache.Put(request, aHandler);
     }
-
 exit:
     if (error != ErrorCode::kNone && aHandler != nullptr)
     {
@@ -581,21 +580,30 @@ exit:
 
 Error Coap::SendResponse(const Request &aRequest, Response &aResponse)
 {
+    std::string uriPath;
     // Set message id to request's id
     if (aResponse.GetMessageId() == 0)
     {
         aResponse.SetMessageId(aRequest.GetMessageId());
     }
 
+    aRequest.GetUriPath(uriPath);
+
+    aResponse.SetUriPath(uriPath);
+
     // Set the token to request's token
     aResponse.SetToken(aRequest.GetToken());
+
 
     // Set message info
     aResponse.SetEndpoint(aRequest.GetEndpoint());
 
+    LOG_INFO(LOG_REGION_COAP, "-------------- SendResponse peer port-------------- {}", aRequest.GetEndpoint()->GetPeerPort());
+
+
     // Enqueue response
     mResponsesCache.Put(aResponse);
-
+LOG_INFO(LOG_REGION_COAP, "-------------- SendResponse --------------");
     return Send(aResponse);
 }
 
@@ -653,7 +661,6 @@ void Coap::HandleRequest(const Request &aRequest)
     {
         LOG_INFO(LOG_REGION_COAP, "server(={}) found cached CoAP response for resource {}", static_cast<void *>(this),
                  uriPath);
-        ExitNow(error = Send(*response));
     }
 
     resource = mResources.find(uriPath);
@@ -831,9 +838,8 @@ Error Coap::SendHeaderResponse(Code aCode, const Request &aRequest)
         ExitNow(error = ERROR_INVALID_ARGS("a CoAP request is neither Confirmable nor NON-Confirmable"));
         break;
     }
-
+LOG_INFO(LOG_REGION_COAP, "-------------- SendHeaderResponse --------------");
     SuccessOrExit(error = SendResponse(aRequest, response));
-
 exit:
     return error;
 }
@@ -847,7 +853,7 @@ Error Coap::SendEmptyMessage(Type aType, const Request &aRequest)
 
     response.SetMessageId(aRequest.GetMessageId());
     response.SetEndpoint(aRequest.GetEndpoint());
-
+LOG_INFO(LOG_REGION_COAP, "-------------- SendEmptyMessage --------------");
     SuccessOrExit(error = Send(response));
 
 exit:
@@ -858,13 +864,20 @@ Error Coap::Send(const Message &aMessage)
 {
     Error     error;
     ByteArray data;
+    std::string uriPath;
+
     SuccessOrExit(error = aMessage.Serialize(data));
 
     if (aMessage.GetEndpoint() == nullptr)
     {
         aMessage.SetEndpoint(&mEndpoint);
     }
+    aMessage.GetUriPath(uriPath);
+        LOG_INFO(LOG_REGION_COAP, "-------------- Send  port 1-------------- {}", aMessage.GetEndpoint()->GetPeerPort());
+    LOG_INFO(LOG_REGION_COAP, "-------------- Send  port 2-------------- {}", mEndpoint.GetPeerPort());
 
+
+     LOG_INFO(LOG_REGION_COAP, "-------------- Send  -------------- {}", uriPath);
     error = aMessage.GetEndpoint()->Send(data, aMessage.GetSubType());
     SuccessOrExit(error);
 
