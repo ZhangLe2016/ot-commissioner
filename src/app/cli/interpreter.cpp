@@ -200,6 +200,7 @@ const std::map<std::string, Interpreter::Evaluator> &Interpreter::mEvaluatorMap 
     {"announce", &Interpreter::ProcessAnnounce},   {"panid", &Interpreter::ProcessPanId},
     {"energy", &Interpreter::ProcessEnergy},       {"exit", &Interpreter::ProcessExit},
     {"quit", &Interpreter::ProcessExit},           {"help", &Interpreter::ProcessHelp},
+    {"diag", &Interpreter::ProcessDiag},
 };
 
 const std::map<std::string, std::string> &Interpreter::mUsageMap = *new std::map<std::string, std::string>{
@@ -277,6 +278,7 @@ const std::map<std::string, std::string> &Interpreter::mUsageMap = *new std::map
               "panid conflict <panid>"},
     {"energy", "energy scan <channel-mask> <count> <period> <scan-duration> <dst-addr>\n"
                "energy report [<dst-addr>]"},
+    {"diag", "diag query [--rloc <rloc>] [--flag <tlvs-flag>] [--timeout <Sec>]"},
     {"exit", "exit"},
     {"quit", "quit\n"
              "(an alias to 'exit' command)"},
@@ -2503,6 +2505,85 @@ Interpreter::Value Interpreter::ProcessEnergy(const Expression &aExpr)
     else
     {
         value = ERROR_INVALID_COMMAND(SYNTAX_INVALID_SUBCOMMAND, aExpr[1]);
+    }
+
+exit:
+    return value;
+}
+
+Interpreter::Value Interpreter::ProcessDiag(const Expression &aExpr)
+{
+    Value              value;
+    CommissionerAppPtr commissioner = nullptr;
+
+    SuccessOrExit(value = mJobManager->GetSelectedCommissioner(commissioner));
+    value = ProcessDiagJob(commissioner, aExpr);
+exit:
+    return value;
+}
+
+Interpreter::Value Interpreter::ProcessDiagJob(CommissionerAppPtr &aCommissioner, const Expression &aExpr)
+{
+    uint16_t  rloc    = 0;
+    uint64_t  flag    = 0;
+    uint32_t  timeout = 0;
+    Value     value;
+    auto      begin = std::chrono::system_clock::now();
+
+    auto it = std::find(mContext.mCommandKeys.begin(), mContext.mCommandKeys.end(), "--rloc");
+    if (it != mContext.mCommandKeys.end())
+    {
+        if (++it != mContext.mCommandKeys.end())
+        {
+            SuccessOrExit(value = ParseInteger(rloc, it[0]));
+        }
+        else
+        {
+            ExitNow(value = ERROR_INVALID_ARGS("Missing --rloc value"));
+        }
+    }
+
+    it = std::find(mContext.mCommandKeys.begin(), mContext.mCommandKeys.end(), "--flag");
+    if (it != mContext.mCommandKeys.end())
+    {
+        if (++it != mContext.mCommandKeys.end())
+        {
+            SuccessOrExit(value = ParseInteger(flag, it[0]));
+        }
+        else
+        {
+            ExitNow(value = ERROR_INVALID_ARGS("Missing --flag value"));
+        }
+    }
+
+    it = std::find(mContext.mCommandKeys.begin(), mContext.mCommandKeys.end(), "--timeout");
+    if (it != mContext.mCommandKeys.end())
+    {
+        if (++it != mContext.mCommandKeys.end())
+        {
+            SuccessOrExit(value = ParseInteger(timeout, it[0]));
+        }
+        else
+        {
+            ExitNow(value = ERROR_INVALID_ARGS("Missing --timeout value"));
+        }
+    }
+
+    if (CaseInsensitiveEqual(aExpr[1], "query"))
+    {
+        VerifyOrExit(aExpr.size() >= 2, value = ERROR_INVALID_ARGS(SYNTAX_FEW_ARGS));
+        SuccessOrExit(value = aCommissioner->CommandDiagGetQuery(rloc, flag, timeout));
+
+        while (begin + std::chrono::milliseconds((timeout + 1) * 1000) >= std::chrono::system_clock::now())
+        {
+            if (! aCommissioner->GetReceivedMessageData().empty())
+            {
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        SuccessOrExit(value = utils::Hex(aCommissioner->GetReceivedMessageData()));
+        aCommissioner->ClearReceviedMessage();
     }
 
 exit:

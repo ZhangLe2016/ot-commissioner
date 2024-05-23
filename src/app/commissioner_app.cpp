@@ -1370,6 +1370,29 @@ const JoinerInfo *CommissionerApp::GetJoinerInfo(JoinerType aType, const ByteArr
     return nullptr;
 }
 
+Error CommissionerApp::CommandDiagGetQuery(uint16_t   aRloc,
+                                           uint64_t   aDiagTlvFlags,
+                                           uint32_t   aTimeout)
+{
+    Error error;
+    SuccessOrExit(error = mCommissioner->CommandDiagGetQuery(aRloc, aDiagTlvFlags, aTimeout));
+exit:
+    return error;
+}
+
+void CommissionerApp::OnDiagAnswerMessage(const ByteArray &aDiagAnsMsg)
+{
+    mDiagAnsMessage.assign(aDiagAnsMsg.begin(), aDiagAnsMsg.end());
+}
+
+const ByteArray &CommissionerApp::GetReceivedMessageData() const
+{
+    ByteArray ret;
+    ret.assign(mDiagAnsMessage.begin(), mDiagAnsMessage.end());
+    mDiagAnsMessage.clear();
+    return ret;
+}
+
 } // namespace commissioner
 
 } // namespace ot

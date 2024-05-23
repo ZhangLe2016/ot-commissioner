@@ -226,6 +226,14 @@ public:
     MOCKABLE Error SetPendingDataset(const PendingOperationalDataset &aDataset);
 
     /*
+    * DIAG_GET APIs
+    */
+    MOCKABLE Error CommandDiagGetQuery(uint16_t   aRloc,
+                                       uint64_t   aDiagTlvFlags,
+                                       uint32_t   aTimeout);
+
+
+    /*
      * BBR Dataset APIs
      */
     MOCKABLE Error GetTriHostname(std::string &aHostname) const;
@@ -308,6 +316,8 @@ private:
     std::shared_ptr<Commissioner> mCommissioner;
 
     ByteArray mSignedToken;
+
+    ByteArray mDiagAnsMessage;
 
 private:
     /*
