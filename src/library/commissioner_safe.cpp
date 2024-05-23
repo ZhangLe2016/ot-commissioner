@@ -549,6 +549,14 @@ Error CommissionerSafe::SetToken(const ByteArray &aSignedToken)
     return pro.get_future().get();
 }
 
+Error CommissionerApp::CommandDiagReset(uint16_t aRloc, uint64_t aDiagTlvFlags)
+{
+    Error error;
+    SuccessOrExit(error = mCommissioner->CommandDiagReset(aRloc, aDiagTlvFlags));
+exit:
+    return error;
+}
+
 void CommissionerSafe::Invoke(evutil_socket_t, short, void *aContext)
 {
     auto commissionerSafe = reinterpret_cast<CommissionerSafe *>(aContext);
