@@ -196,6 +196,9 @@ public:
 
     struct event_base *GetEventBase() { return mEventBase; }
 
+    void  CommandDiagReset(ErrorHandler aHandler, uint16_t aRloc, uint64_t aaDiagTlvFlags) override;
+    Error CommandDiagReset(uint16_t, uint64_t) override { return ERROR_UNIMPLEMENTED(""); }
+
 private:
     using AsyncRequest = std::function<void()>;
 
