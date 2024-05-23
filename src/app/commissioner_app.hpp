@@ -230,7 +230,7 @@ public:
      */
 
     // Always send DIAG_GET.rst.
-    MOCKABLE Error CommandDiagReset(uint16_t aRloc, uint64_t aDiagTlvFlags);
+    MOCKABLE Error CommandDiagGetReset(uint16_t aRloc, uint64_t aDiagTlvFlags);
 
     /*
      * BBR Dataset APIs

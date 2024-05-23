@@ -2524,12 +2524,9 @@ exit:
 
 Interpreter::Value Interpreter::ProcessDiagJob(CommissionerAppPtr &aCommissioner, const Expression &aExpr)
 {
-    uint16_t  rloc    = 0;
-    uint64_t  flag    = 0;
-    uint32_t  timeout = 0;
-    Value     value;
-    ByteArray rawTlvData;
-    auto      begin = std::chrono::system_clock::now();
+    uint16_t rloc = 0;
+    uint64_t flag = 0;
+    Value    value;
 
     auto it = std::find(mContext.mCommandKeys.begin(), mContext.mCommandKeys.end(), "--rloc");
     if (it != mContext.mCommandKeys.end())
