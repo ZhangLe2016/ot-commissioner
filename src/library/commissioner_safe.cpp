@@ -561,17 +561,17 @@ void CommissionerSafe::Invoke(evutil_socket_t, short, void *aContext)
     }
 }
 
-void CommissionerSafe::CommandDiagReset(ErrorHandler aHandler, uint16_t aRloc, uint64_t aDiagTlvFlags)
+void CommissionerSafe::CommandDiagGetReset(ErrorHandler aHandler, uint16_t aRloc, uint64_t aDiagTlvFlags)
 {
-    PushAsyncRequest([=]() { mImpl->CommandDiagReset(aHandler, aRloc, aDiagTlvFlags); });
+    PushAsyncRequest([=]() { mImpl->CommandDiagGetReset(aHandler, aRloc, aDiagTlvFlags); });
 }
 
-Error CommissionerSafe::CommandDiagReset(uint16_t aRloc, uint64_t aDiagTlvFlags)
+Error CommissionerSafe::CommandDiagGetReset(uint16_t aRloc, uint64_t aDiagTlvFlags)
 {
     std::promise<Error> pro;
     auto                wait = [&pro](Error error) { pro.set_value(error); };
 
-    CommandDiagReset(wait, aRloc, aDiagTlvFlags);
+    CommandDiagGetReset(wait, aRloc, aDiagTlvFlags);
     std::future<Error> fut = pro.get_future();
 
     if (fut.wait_for(std::chrono::seconds(10)) == std::future_status::timeout)
