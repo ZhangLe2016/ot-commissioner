@@ -1370,9 +1370,7 @@ const JoinerInfo *CommissionerApp::GetJoinerInfo(JoinerType aType, const ByteArr
     return nullptr;
 }
 
-Error CommissionerApp::CommandDiagGetQuery(uint16_t   aRloc,
-                                           uint64_t   aDiagTlvFlags,
-                                           uint32_t   aTimeout)
+Error CommissionerApp::CommandDiagGetQuery(uint16_t aRloc, uint64_t aDiagTlvFlags, uint32_t aTimeout)
 {
     Error error;
     SuccessOrExit(error = mCommissioner->CommandDiagGetQuery(aRloc, aDiagTlvFlags, aTimeout));

@@ -226,12 +226,9 @@ public:
     MOCKABLE Error SetPendingDataset(const PendingOperationalDataset &aDataset);
 
     /*
-    * DIAG_GET APIs
-    */
-    MOCKABLE Error CommandDiagGetQuery(uint16_t   aRloc,
-                                       uint64_t   aDiagTlvFlags,
-                                       uint32_t   aTimeout);
-
+     * DIAG_GET APIs
+     */
+    MOCKABLE Error CommandDiagGetQuery(uint16_t aRloc, uint64_t aDiagTlvFlags, uint32_t aTimeout);
 
     /*
      * BBR Dataset APIs
@@ -278,6 +275,7 @@ public:
     MOCKABLE const EnergyReportMap &GetAllEnergyReports() const;
 
     const std::string &GetDomainName() const;
+    const ByteArray   &GetReceivedMessageData() const;
 
 protected:
     CommissionerApp() = default;

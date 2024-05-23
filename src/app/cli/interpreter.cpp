@@ -2524,11 +2524,11 @@ exit:
 
 Interpreter::Value Interpreter::ProcessDiagJob(CommissionerAppPtr &aCommissioner, const Expression &aExpr)
 {
-    uint16_t  rloc    = 0;
-    uint64_t  flag    = 0;
-    uint32_t  timeout = 0;
-    Value     value;
-    auto      begin = std::chrono::system_clock::now();
+    uint16_t rloc    = 0;
+    uint64_t flag    = 0;
+    uint32_t timeout = 0;
+    Value    value;
+    auto     begin = std::chrono::system_clock::now();
 
     auto it = std::find(mContext.mCommandKeys.begin(), mContext.mCommandKeys.end(), "--rloc");
     if (it != mContext.mCommandKeys.end())
@@ -2576,7 +2576,7 @@ Interpreter::Value Interpreter::ProcessDiagJob(CommissionerAppPtr &aCommissioner
 
         while (begin + std::chrono::milliseconds((timeout + 1) * 1000) >= std::chrono::system_clock::now())
         {
-            if (! aCommissioner->GetReceivedMessageData().empty())
+            if (!aCommissioner->GetReceivedMessageData().empty())
             {
                 break;
             }
